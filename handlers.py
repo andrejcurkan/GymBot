@@ -5,7 +5,7 @@ from database import Client, get_db
 from sqlalchemy.orm import Session
 
 # Определяем состояния для ConversationHandler
-NAME, LAST_NAME, SUBSCRIPTION = range(3)
+FULL_NAME, SUBSCRIPTION = range(2)  # Убрали NAME и LAST_NAME, добавили FULL_NAME
 
 # Клавиатура для выбора типа абонемента
 def get_subscription_keyboard():
@@ -35,35 +35,38 @@ async def start(update: Update, context: CallbackContext) -> int:
     )
     return ConversationHandler.END
 
-# Обработчик нажатия на кнопку "Купить абонемент"
+## Обработчик нажатия на кнопку "Купить абонемент"
 async def buy(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text(
         "💳 *Купить абонемент*\n"
-        "Введите ваше имя:",
+        "Введите ваше имя и фамилию (например, Иван Иванов):",
         reply_markup=get_menu_keyboard(),
         parse_mode="Markdown"
     )
-    return NAME
+    return FULL_NAME  # Переходим в состояние FULL_NAME
 
-# Обработчик для ввода имени
-async def get_name(update: Update, context: CallbackContext) -> int:
-    context.user_data['first_name'] = update.message.text
-    await update.message.reply_text(
-        "📝 Введите вашу фамилию:",
-        reply_markup=get_menu_keyboard()
-    )
-    return LAST_NAME
+# Обработчик для ввода имени и фамилии
+async def get_full_name(update: Update, context: CallbackContext) -> int:
+    full_name = update.message.text.strip()  # Получаем введенные данные
+    parts = full_name.split(maxsplit=1)  # Разделяем на имя и фамилию
 
-# Обработчик для ввода фамилии
-async def get_last_name(update: Update, context: CallbackContext) -> int:
-    context.user_data['last_name'] = update.message.text
+    if len(parts) < 2:
+        await update.message.reply_text(
+            "❌ Пожалуйста, введите имя и фамилию через пробел (например, Иван Иванов).",
+            reply_markup=get_menu_keyboard()
+        )
+        return FULL_NAME  # Остаемся в состоянии FULL_NAME, если ввод некорректен
+
+    # Сохраняем имя и фамилию в context.user_data
+    context.user_data['first_name'] = parts[0]
+    context.user_data['last_name'] = parts[1]
+
     await update.message.reply_text(
         "🗓️ *Выберите тип абонемента:*",
         reply_markup=get_subscription_keyboard(),
         parse_mode="Markdown"
     )
-    return SUBSCRIPTION
-
+    return SUBSCRIPTION  # Переходим в состояние SUBSCRIPTION
 # Обработчик выбора типа абонемента
 async def get_subscription(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
